@@ -9,7 +9,7 @@ function love.load()
 	songL = {1, .5, .5, .5, .5, .5, .5,  1,  1}
 	songX = {0, .5,  1,  1,  1, .5,  0,  0, .5}
 	songY = {0,  0,  0, .5,  1,  1,  1, .5, .5}
-	chro_to_dia = {0, 1, 3, 5, 6, 8, 10, 12, 13, 25}
+	chro_to_dia = {0, 1, 3, 5, 6, 8, 10, 12, 13}
 	
 	timer = 1
 	isPlaying = false
@@ -20,6 +20,9 @@ function love.load()
 	math.randomseed(love.timer.getTime())
 	learningRate = 1 -- set between 1, 100
 	threshold = 1 -- steepness of the sigmoid curve
+	graphX = 64
+	graphY = 64 
+	speed = 50
 	
 	myNetwork = luann:new({2,4, 4}, learningRate, threshold)
 	index = 0
@@ -34,6 +37,7 @@ function love.keypressed(key, unicode)
 		end
 	end
 end
+
 function getNote(x, y)
 	tempArr = {x, y}
 	myNetwork:activate(tempArr)
@@ -72,53 +76,53 @@ function love.draw()
 
 	if isPlaying then
 		if timer > nextUpdate and songPos < #song+1 then
-			nextUpdate = nextUpdate + ((songL[songPos])*60)
-			noteToPlay = getNote(songX[songPos],songY[songPos])
-			if noteToPlay == 25 then
-				note = love.sound.newSoundData(1000,44100,16,1)
-				for i=0,songL[songPos]*999 do
-					note:setSample(i, math.sin(i * (math.sin(i/10)/25*math.pow(math.pow(2,1/12),chro_to_dia[noteToPlay+1]))))
-				end
-				source1 = love.audio.newSource(note, "static")
-				love.audio.play(source1)
-			elseif noteToPlay ~= 0 then
-				note = love.sound.newSoundData(songL[songPos]*10000,44100,16,1)
-				for i=0,songL[songPos]*9999 do
-					note:setSample(i, math.sin(i/25*math.pow(math.pow(2,1/12),chro_to_dia[noteToPlay+1])))
+		
+			nextUpdate = nextUpdate + ((songL[songPos])*60) --updates value to next time to update note
+			
+			noteToPlay = getNote(songX[songPos],songY[songPos]) --feed forward the input x y, get note value from it
+			
+			if noteToPlay == 9 then --hiccup
+			
+				hiccup = love.audio.newSource("hiccup.wav", "static")
+				love.audio.play(hiccup)
+				
+			elseif noteToPlay ~= 0 then --normal note
+				noteLength = songL[songPos]*40000
+				note = love.sound.newSoundData(noteLength,44100,16,1)
+				
+				for i=0,noteLength - 1 do
+					vibratoval = 1 + (math.sin( i/ 1500 ) / 500)
+					volCo = ((noteLength-i)/noteLength)
+					
+                    note:setSample(i,volCo * math.sin(i/25*vibratoval*math.pow(math.pow(2,1/12),chro_to_dia[noteToPlay+1])))
+
 				end
 				source1 = love.audio.newSource(note, "static")
 				love.audio.play(source1)
 			end
+			
 			songPos = songPos + 1
-		elseif timer > nextUpdate and songPos > #song then
+			
+		elseif timer > nextUpdate and songPos > #song then --end song, reset values
 			timer = 1
 			songPos = 1
 			nextUpdate = 60
 			isPlaying = false
 		end
 		
-		if songPos > 1 then
+		if songPos > 1 then --draw the outlines
 			tempX = graphX + 14 + ((songX[songPos-1])*256)
 			tempY =  graphY + 14 + ((songY[songPos-1])*256)
 			love.graphics.setColor(1,1,1,1)
 			love.graphics.rectangle("fill",tempX,tempY,12,12)
 		end
-			
-		if songPos < #song+2 then
-			timer = timer + 1
-		end--[[else
-			timer = 1
-			songPos = 1
-			nextUpdate = 60
-			isPlaying = false
-		end]]--
+		
+		timer = timer + 1
 
 	end
 	
 	
-	graphX = 64
-	graphY = 64 
-	speed = 2
+
 	if love.keyboard.isDown("space") then
 		for i = 1, speed do
 			if     index == 0 then myNetwork:bp({0,0}, {1,0,0,0})

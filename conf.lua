@@ -1,3 +1,3 @@
---[[function love.conf(t)
+function love.conf(t)
     t.console = true
-end]]--
+end
