@@ -71,12 +71,12 @@ end
 function love.draw()
 
 	if isPlaying then
-		if timer > nextUpdate then
+		if timer > nextUpdate and songPos < #song+1 then
 			nextUpdate = nextUpdate + ((songL[songPos])*60)
 			noteToPlay = getNote(songX[songPos],songY[songPos])
 			if noteToPlay == 25 then
-				note = love.sound.newSoundData(songL[songPos]*2000,44100,16,1)
-				for i=0,songL[songPos]*1999 do
+				note = love.sound.newSoundData(1000,44100,16,1)
+				for i=0,songL[songPos]*999 do
 					note:setSample(i, math.sin(i * (math.sin(i/10)/25*math.pow(math.pow(2,1/12),chro_to_dia[noteToPlay+1]))))
 				end
 				source1 = love.audio.newSource(note, "static")
@@ -91,8 +91,15 @@ function love.draw()
 			end
 			songPos = songPos + 1
 		end
+		
+		if songPos > 1 then
+			tempX = graphX + 14 + ((songX[songPos-1])*256)
+			tempY =  graphY + 14 + ((songY[songPos-1])*256)
+			love.graphics.setColor(1,1,1,1)
+			love.graphics.rectangle("fill",tempX,tempY,12,12)
+		end
 			
-		if songPos < #song then
+		if songPos < #song+2 then
 			timer = timer + 1
 		else
 			timer = 1
@@ -100,6 +107,7 @@ function love.draw()
 			nextUpdate = 60
 			isPlaying = false
 		end
+
 	end
 	
 	
