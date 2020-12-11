@@ -90,6 +90,11 @@ function love.draw()
 				love.audio.play(source1)
 			end
 			songPos = songPos + 1
+		elseif timer > nextUpdate and songPos > #song then
+			timer = 1
+			songPos = 1
+			nextUpdate = 60
+			isPlaying = false
 		end
 		
 		if songPos > 1 then
@@ -101,12 +106,12 @@ function love.draw()
 			
 		if songPos < #song+2 then
 			timer = timer + 1
-		else
+		end--[[else
 			timer = 1
 			songPos = 1
 			nextUpdate = 60
 			isPlaying = false
-		end
+		end]]--
 
 	end
 	
