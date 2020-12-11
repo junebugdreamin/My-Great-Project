@@ -5,9 +5,16 @@ function love.load()
 	love.graphics.setBackgroundColor(0,0,0)
 	
 	note = love.sound.newSoundData(16000,44100,16,1)
-	song = {0,-5,-8,-12,-8,-5,0,4,7,12}
-	timer = 0
+	song  = {1,  2,  3,  4,  5,  6,  7,  8,  0}
+	songL = {1, .5, .5, .5, .5, .5, .5,  1,  1}
+	songX = {0, .5,  1,  1,  1, .5,  0,  0, .5}
+	songY = {0,  0,  0, .5,  1,  1,  1, .5, .5}
+	chro_to_dia = {0, 1, 3, 5, 6, 8, 10, 12, 13, 25}
 	
+	timer = 1
+	isPlaying = false
+	songPos = 1
+	nextUpdate = 60
 	
 	local luann = require("luann")
 	math.randomseed(love.timer.getTime())
@@ -15,67 +22,107 @@ function love.load()
 	threshold = 1 -- steepness of the sigmoid curve
 	
 	myNetwork = luann:new({2,4, 4}, learningRate, threshold)
-
-	
-		--[[myNetwork:bp({0,0,0,0},{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0})
-		myNetwork:bp({1,0,0,0},{0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0})
-		myNetwork:bp({0,1,0,0},{0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0})
-		myNetwork:bp({0,0,1,0},{0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0})
-		myNetwork:bp({0,0,0,1},{0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0})
-		myNetwork:bp({1,1,0,0},{0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0})
-		myNetwork:bp({1,0,1,0},{0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0})
-		myNetwork:bp({1,0,0,1},{0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0})
-		myNetwork:bp({0,1,1,0},{0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0})
-		myNetwork:bp({0,1,0,1},{0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0})
-		myNetwork:bp({0,0,1,1},{0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0})
-		myNetwork:bp({1,1,1,0},{0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0})
-		myNetwork:bp({0,1,1,1},{0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0})
-		myNetwork:bp({1,1,0,1},{0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0})
-		myNetwork:bp({1,0,1,1},{0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0})
-		myNetwork:bp({1,1,1,1},{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1})]]--
-		
-	
+	index = 0
 end
 
-function love.draw()
-	--[[if timer < (((#song+1)*60)-1) then
-		timer = timer + 1
-	end
-	if (timer % 60 == 0) then
-		noteToPlay = song[math.floor(timer/60)]
-		if noteToPlay ~= 0 then
-			for i=0,9999 do
-				note:setSample(i, math.sin(i/25*math.pow(math.pow(2,1/12),noteToPlay)))
-			end
-			source1 = love.audio.newSource(note, "static")
-			love.audio.play(source1)
+function love.keypressed(key, unicode)
+	if key == "p" then
+		if isPlaying then
+			isPlaying = false
+		else
+			isPlaying = true
 		end
-	end]]--
+	end
+end
+function getNote(x, y)
+	tempArr = {x, y}
+	myNetwork:activate(tempArr)
+	a = myNetwork[3].cells[1].signal
+	b = myNetwork[3].cells[2].signal
+	c = myNetwork[3].cells[3].signal
+	d = myNetwork[3].cells[4].signal
+	n = -1
+	
+	if a >= .5 and b < .5 and c < .5 and d <.5 then
+		n = 1
+	elseif a >= .5 and b >= .5 and c < .5 and d <.5 then
+		n = 2
+	elseif a < .5 and b >= .5 and c < .5 and d <.5 then
+		n = 3
+	elseif a < .5 and b >= .5 and c >= .5 and d <.5 then
+		n = 4
+	elseif a < .5 and b < .5 and c >= .5 and d <.5 then
+		n = 5
+	elseif a < .5 and b < .5 and c >= .5 and d >=.5 then
+		n = 6
+	elseif a < .5 and b < .5 and c < .5 and d >=.5 then
+		n = 7
+	elseif a >= .5 and b < .5 and c < .5 and d >=.5 then
+		n = 8
+	elseif a < .5 and b < .5 and c < .5 and d <.5 then
+		n = 0
+	else
+		n = 9 --hiccup later
+	end
+	
+	return n
+	
+end
+function love.draw()
+
+	if isPlaying then
+		if timer > nextUpdate then
+			nextUpdate = nextUpdate + ((songL[songPos])*60)
+			noteToPlay = getNote(songX[songPos],songY[songPos])
+			if noteToPlay == 25 then
+				note = love.sound.newSoundData(songL[songPos]*2000,44100,16,1)
+				for i=0,songL[songPos]*1999 do
+					note:setSample(i, math.sin(i * (math.sin(i/10)/25*math.pow(math.pow(2,1/12),chro_to_dia[noteToPlay+1]))))
+				end
+				source1 = love.audio.newSource(note, "static")
+				love.audio.play(source1)
+			elseif noteToPlay ~= 0 then
+				note = love.sound.newSoundData(songL[songPos]*10000,44100,16,1)
+				for i=0,songL[songPos]*9999 do
+					note:setSample(i, math.sin(i/25*math.pow(math.pow(2,1/12),chro_to_dia[noteToPlay+1])))
+				end
+				source1 = love.audio.newSource(note, "static")
+				love.audio.play(source1)
+			end
+			songPos = songPos + 1
+		end
+			
+		if songPos < #song then
+			timer = timer + 1
+		else
+			timer = 1
+			songPos = 1
+			nextUpdate = 60
+			isPlaying = false
+		end
+	end
+	
 	
 	graphX = 64
-	graphY = 64
-	speed = 1
-	for i = 1,speed do
-		myNetwork:bp({0,0}, {1,0,0,0})
-		myNetwork:bp({.5,0},{1,1,0,0})
-		myNetwork:bp({1,0}, {0,1,0,0})
-		myNetwork:bp({1,.5},{0,1,1,0})
-		myNetwork:bp({1,1}, {0,0,1,0})
-		myNetwork:bp({.5,1},{0,0,1,1})
-		myNetwork:bp({0,1},{0,0,0,1})
-		myNetwork:bp({0,.5},{1,0,0,1})
-		myNetwork:bp({.5,.5},{0,0,0,0})
+	graphY = 64 
+	speed = 2
+	if love.keyboard.isDown("space") then
+		for i = 1, speed do
+			if     index == 0 then myNetwork:bp({0,0}, {1,0,0,0})
+			elseif index == 1 then myNetwork:bp({.5,0},{1,1,0,0})
+			elseif index == 2 then myNetwork:bp({1,0}, {0,1,0,0})
+			elseif index == 3 then myNetwork:bp({1,.5},{0,1,1,0})
+			elseif index == 4 then myNetwork:bp({1,1}, {0,0,1,0})
+			elseif index == 5 then myNetwork:bp({.5,1},{0,0,1,1})
+			elseif index == 6 then myNetwork:bp({0,1},{0,0,0,1})
+			elseif index == 7 then myNetwork:bp({0,.5},{1,0,0,1})
+			elseif index == 8 then myNetwork:bp({.5,.5},{0,0,0,0})
+			end
+			index = index + 1
+			if index > 8 then index = 0 end
+		end
+	end
 		
-	end
-	for i = 1, 4 do
-		love.graphics.setColor(1,1,1,1)
-		love.graphics.print(tostring(myNetwork[2].cells[i]),graphX,graphY + 256 + 32 + (i*32))
-	end
-	
-	for i = 1, 4 do
-		love.graphics.setColor(1,1,1,1)
-		love.graphics.print(tostring(myNetwork[3].cells[i]),graphX+128,graphY + 256 + 32 + (i*32))
-	end
 	
 	
 	for i = 1, 17 do
