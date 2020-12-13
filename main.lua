@@ -44,13 +44,14 @@ function love.load()
 	step = 0
 	
 	--neural net stuff
-	local luann = require("luann")
+    luann = require("luann")
 	math.randomseed(love.timer.getTime())
 	learningRate = 1 -- set between 1, 100
 	threshold = 1 -- steepness of the sigmoid curve
 	myNetwork = luann:new({2,4, 4}, learningRate, threshold)
 	speed = 1
 	index = 0
+	
 	
 end
 
