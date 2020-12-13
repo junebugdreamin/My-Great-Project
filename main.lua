@@ -1,31 +1,42 @@
---project borrows heavily from https://github.com/wixico/luann, thank you!!
-io.stdout:setvbuf("no")
-
 function love.load()
+	--graphics stuff
 	love.graphics.setBackgroundColor(0,0,0)
+	font = love.graphics.newFont("zeldadxt.ttf", 22, mono)
+	love.graphics.setFont( font )
+	love.graphics.setDefaultFilter("nearest", "nearest", 1) 
+	love.window.setMode(512,512)
+
+	--song data
+	song  = { 1,  2,  3,  4,  5,  6,  7,  8,  1,  3,  5,  3,  1 }
+	songO = { 0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1 }
+	songL = {.5, .5, .5, .5, .5, .5, .5, .5,  1, .5,  1, .5,  1 }
+	songX = { 0, .5,  1,  1,  1, .5,  0,  0,  0,  1,  1,  1,  0 }
+	songY = { 0,  0,  0, .5,  1,  1,  1, .5,  0,  0,  1,  0,  0 }
 	
+	--note/song engine stuff
+	chro_to_dia = {0, 1, 3, 5, 6, 8, 10, 11, 12}
 	note = love.sound.newSoundData(16000,44100,16,1)
-	song  = {1,  2,  3,  4,  5,  6,  7,  8,  0}
-	songL = {1, .5, .5, .5, .5, .5, .5,  1,  1}
-	songX = {0, .5,  1,  1,  1, .5,  0,  0, .5}
-	songY = {0,  0,  0, .5,  1,  1,  1, .5, .5}
-	chro_to_dia = {0, 1, 3, 5, 6, 8, 10, 12, 13}
-	
 	timer = 1
 	isPlaying = false
 	songPos = 1
-	nextUpdate = 60
+	beginningOffset = 120
+	nextUpdate = beginningOffset
+	graphX = 16
+	graphY = 256-24
+	accuracy = 0
+	bpm = 60
+	correct = true
+	step = 0
 	
+	--neural net stuff
 	local luann = require("luann")
 	math.randomseed(love.timer.getTime())
 	learningRate = 1 -- set between 1, 100
 	threshold = 1 -- steepness of the sigmoid curve
-	graphX = 64
-	graphY = 64 
-	speed = 50
-	
 	myNetwork = luann:new({2,4, 4}, learningRate, threshold)
+	speed = 1
 	index = 0
+	
 end
 
 function love.keypressed(key, unicode)
@@ -72,12 +83,90 @@ function getNote(x, y)
 	return n
 	
 end
-function love.draw()
 
+function getNoteTime(n)
+	out = beginningOffset
+	for i = 1, n-1 do
+		if (i < #song+1) then
+			out = out + (songL[i] * bpm)
+		end
+	end
+	return out
+end
+
+function setNoteColor(n,o)
+	if not (n == -1) then
+	
+		if song[n] == 1 then
+			love.graphics.setColor(1,0,0,o)
+		elseif song[n] == 2 then
+			love.graphics.setColor(1,.5,0,o)
+		elseif song[n] == 3 then
+			love.graphics.setColor(1,1,0,o)
+		elseif song[n] == 4 then
+			love.graphics.setColor(0,1,0,o)
+		elseif song[n] == 5 then
+			love.graphics.setColor(0,1,1,o)
+		elseif song[n] == 6 then
+			love.graphics.setColor(0,.5,1,o)
+		elseif song[n] == 7 then
+			love.graphics.setColor(.5,0,1,o)
+		elseif song[n] == 8 then
+			love.graphics.setColor(1,0,1,o)
+		elseif song[n] == 0 then
+			love.graphics.setColor(1,1,1,o)
+		end
+		
+	else
+		a = myNetwork[3].cells[1].signal
+		b = myNetwork[3].cells[2].signal
+		c = myNetwork[3].cells[3].signal
+		d = myNetwork[3].cells[4].signal
+		n = -1
+		
+		if a >= .5 and b < .5 and c < .5 and d <.5 then
+			love.graphics.setColor(1,0,0,o)
+		elseif a >= .5 and b >= .5 and c < .5 and d <.5 then
+			love.graphics.setColor(1,.5,0,o)
+		elseif a < .5 and b >= .5 and c < .5 and d <.5 then
+			love.graphics.setColor(1,1,0,o)
+		elseif a < .5 and b >= .5 and c >= .5 and d <.5 then
+			love.graphics.setColor(0,1,0,o)
+		elseif a < .5 and b < .5 and c >= .5 and d <.5 then
+			love.graphics.setColor(0,1,1,o)
+		elseif a < .5 and b < .5 and c >= .5 and d >=.5 then
+			love.graphics.setColor(0,.5,1,o)
+		elseif a < .5 and b < .5 and c < .5 and d >=.5 then
+			love.graphics.setColor(.5,0,1,o)
+		elseif a >= .5 and b < .5 and c < .5 and d >=.5 then
+			love.graphics.setColor(1,0,1,o)
+		elseif a < .5 and b < .5 and c < .5 and d <.5 then
+			love.graphics.setColor(0,0,0,o) --rest
+		else
+			love.graphics.setColor(.5,.5,.5,o) --hiccup later
+		end
+		
+	end
+	
+end
+
+function love.draw()
+	for i = 1, 33 do
+		for j = 1, 33 do
+			myNetwork:activate({(i-1)/32,(j-1)/32})
+			setNoteColor(-1,1)
+			love.graphics.rectangle("fill",graphX+((i-1)*8), graphY+((j-1)*8),8,8)
+		end
+	end
+	
+	love.graphics.setColor(1,1,1,1)
+	love.graphics.print("acc: " .. math.ceil(accuracy*100) .. "/100",graphX+256+16,graphY+256-8)
+	love.graphics.print("step: " .. step ,graphX+256+16,graphY+256-8-16)
+	
 	if isPlaying then
 		if timer > nextUpdate and songPos < #song+1 then
 		
-			nextUpdate = nextUpdate + ((songL[songPos])*60) --updates value to next time to update note
+			nextUpdate = nextUpdate + ((songL[songPos])*bpm) --updates value to next time to update note
 			
 			noteToPlay = getNote(songX[songPos],songY[songPos]) --feed forward the input x y, get note value from it
 			
@@ -87,41 +176,81 @@ function love.draw()
 				love.audio.play(hiccup)
 				
 			elseif noteToPlay ~= 0 then --normal note
-				noteLength = songL[songPos]*40000
+				noteLength = songL[songPos]*40000*(bpm/60)
 				note = love.sound.newSoundData(noteLength,44100,16,1)
 				
 				for i=0,noteLength - 1 do
 					vibratoval = 1 + (math.sin( i/ 1500 ) / 500)
 					volCo = ((noteLength-i)/noteLength)
 					
-                    note:setSample(i,volCo * math.sin(i/25*vibratoval*math.pow(math.pow(2,1/12),chro_to_dia[noteToPlay+1])))
+                    note:setSample(i,volCo * math.sin(i/25*vibratoval*math.pow(math.pow(2,1/12),chro_to_dia[noteToPlay+1]+(songO[songPos]*12))))
 
 				end
 				source1 = love.audio.newSource(note, "static")
 				love.audio.play(source1)
 			end
 			
+			if noteToPlay == song[songPos] and song[songPos] < #song then
+				accuracy = accuracy + (1/(#song))
+				correct = true
+			elseif noteToPlay ~= song[songPos] then
+				correct = false
+			end
+			
+			
 			songPos = songPos + 1
 			
 		elseif timer > nextUpdate and songPos > #song then --end song, reset values
 			timer = 1
 			songPos = 1
-			nextUpdate = 60
+			nextUpdate = beginningOffset
 			isPlaying = false
+			accuracy = 0
 		end
 		
 		if songPos > 1 then --draw the outlines
-			tempX = graphX + 14 + ((songX[songPos-1])*256)
-			tempY =  graphY + 14 + ((songY[songPos-1])*256)
-			love.graphics.setColor(1,1,1,1)
-			love.graphics.rectangle("fill",tempX,tempY,12,12)
+			tempX = graphX + ((songX[songPos-1])*256)
+			tempY =  graphY + ((songY[songPos-1])*256)
+			if math.floor(timer/4) % 2 == 0 then
+				if correct then
+					love.graphics.setColor(1,1,1,1)
+				else
+					love.graphics.setColor(0,0,0,1)
+				end
+			else
+				setNoteColor(songPos-1,1)
+			end
+			love.graphics.rectangle("fill",tempX,tempY,8,8)
+		end
+		
+		--draw falling notes
+		
+		for i = songPos, #song do
+			if i < #song+1 then
+				tempPos = getNoteTime(i)
+				tempX = graphX + ((songX[i])*256)
+				tempY =  graphY + ((songY[i])*256)
+				tempPos = tempPos - timer
+				tempPos = tempPos * 2
+				opacity = (100 - (tempPos/2)) / 100
+				if opacity < 0 then
+					opacity = 0
+				end
+				love.graphics.setColor(0,0,0,1)
+				love.graphics.rectangle("line",tempX+2,tempY+2 - tempPos,4,4)
+				love.graphics.rectangle("line",tempX-2,tempY-2 - tempPos,12,12)
+				
+				love.graphics.setColor(0,0,0,opacity)
+				love.graphics.rectangle("fill",tempX,tempY,8,8)
+				
+				setNoteColor(i,1)
+				love.graphics.rectangle("line",tempX,tempY - tempPos,8,8)
+			end
 		end
 		
 		timer = timer + 1
 
 	end
-	
-	
 
 	if love.keyboard.isDown("space") then
 		for i = 1, speed do
@@ -139,39 +268,5 @@ function love.draw()
 			if index > 8 then index = 0 end
 		end
 	end
-		
-	
-	
-	for i = 1, 17 do
-		for j = 1, 17 do
-			myNetwork:activate({i/16,j/16})
-			if (1==1) then
-				if myNetwork[3].cells[1].signal >= .5 then
-					love.graphics.setColor(1,0,0,1)
-					love.graphics.rectangle("fill",graphX+(i*16), graphY+(j*16),4,4)
-				end
-				if myNetwork[3].cells[2].signal >= .5 then
-					love.graphics.setColor(0,1,0,1)
-					love.graphics.rectangle("fill",graphX+(i*16)+4, graphY+(j*16),4,4)
-				end
-				if myNetwork[3].cells[3].signal >= .5 then
-					love.graphics.setColor(0,0,1,1)
-					love.graphics.rectangle("fill",graphX+(i*16), graphY+(j*16)+4,4,4)
-				end
-				if myNetwork[3].cells[4].signal >= .5 then
-					love.graphics.setColor(1,1,0,1)
-					love.graphics.rectangle("fill",graphX+(i*16)+4, graphY+(j*16)+4,4,4)
-				end	
-			else
-				love.graphics.setColor(1,0,0,myNetwork[3].cells[1].signal)
-				love.graphics.rectangle("fill",graphX+(i*16), graphY+(j*16),4,4)
-				love.graphics.setColor(0,1,0,myNetwork[3].cells[2].signal)
-				love.graphics.rectangle("fill",graphX+(i*16)+4, graphY+(j*16),4,4)
-				love.graphics.setColor(0,0,1,myNetwork[3].cells[3].signal)
-				love.graphics.rectangle("fill",graphX+(i*16), graphY+(j*16)+4,4,4)
-				love.graphics.setColor(1,1,0,myNetwork[3].cells[4].signal)
-				love.graphics.rectangle("fill",graphX+(i*16)+4, graphY+(j*16)+4,4,4)
-			end
-		end
-	end
+
 end

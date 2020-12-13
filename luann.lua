@@ -257,6 +257,7 @@ end
 
 
 function luann:bp(inputs, outputs)
+	step = step + 1
 	self:activate(inputs) --update the internal inputs and outputs
 	local numSelf = #self
 	local learningRate = self.learningRate
