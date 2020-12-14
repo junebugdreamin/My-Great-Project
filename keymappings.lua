@@ -10,6 +10,10 @@ keyDown = "down"
 keyA = "z"
 keyB = "x"
 
+--rare case: if you Really need a bigger resolution multiplier... you can raise the limit of the in-game settings here--
+resolutionCap = 4
+--this number is multiplied by 512 to get screen res--
+
 
 --[[dont mess with these!]]--
 

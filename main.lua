@@ -4,7 +4,6 @@ function love.load()
 	font = love.graphics.newFont("zeldadxt.ttf", 22, mono)
 	love.graphics.setFont( font )
 	love.graphics.setDefaultFilter("nearest", "nearest", 1) 
-	love.window.setMode(512,512)
 	
 	--general stuff
 	require("keymappings") 
@@ -13,8 +12,14 @@ function love.load()
 	guiSaveConfirm = {"yes, save", "no, nvm"}
 	guiLoadConfirm = {"yes, load", "no, nvm"}
 	guiExitConfirm = {"yes, exit", "no, nvm"}
+	guiSettings = {"volume", "resolution", "fullscreen", "back"}
+	
 	settingScale = 1
 	settingVol = .8
+	settingFullscreen = false
+	
+	applySettings()
+	
 	
 	guiOption = 1
 	gui = guiMain
@@ -55,6 +60,11 @@ function love.load()
 	
 end
 
+function applySettings()
+	love.window.setMode(512*settingScale,512*settingScale)
+	love.window.setFullscreen( settingFullscreen )
+end
+
 function checkKeyPresses()
 
 if love.keyboard.isDown(keyUp) and kUp == false then kUpP = true else kUpP = false end
@@ -79,6 +89,8 @@ end
 
 function love.draw()
 
+	love.graphics.scale((math.floor(settingScale*2)/2))
+	
 	checkKeyPresses()
 	
 	--draw the network
@@ -252,6 +264,9 @@ function guiDraw(menu)
 			elseif menu[guiOption] == "exit" then 
 				gui = guiExitConfirm
 				guiOption = 1
+			elseif menu[guiOption] == "settings" then
+				gui = guiSettings
+				guiOption = 1
 			end
 			
 		elseif gui == guiLoad then
@@ -301,11 +316,66 @@ function guiDraw(menu)
 				gui = guiMain
 				guiOption = 1
 			end
+		elseif gui == guiSettings then
+			
+			if menu[guiOption] == "back" then
+				gui = guiMain
+				guiOption = 1
+			end
+			
 		end
 		
 	end
+	if gui == guiSettings then
+		if menu[guiOption] == "volume" then
+			if kLeftP then
+				if settingVol > 0 then
+					settingVol = settingVol - .05
+				end
+			end
+			if kRightP then
+				if settingVol < 1 then
+					settingVol = settingVol + .05
+				end
+			end
+			statusbar("volume: " .. math.floor((settingVol+.001)*100) .. "%")
+		elseif menu[guiOption] == "resolution" then
+			if kLeftP then
+				if settingScale > 1 then
+					settingScale = settingScale - 1
+					applySettings()
+				elseif settingScale > .5 then
+					settingScale = .5
+					applySettings()
+				end
+			end
+			if kRightP then
+				if settingScale < resolutionCap and settingScale >= 1 then
+					settingScale = settingScale + 1
+					applySettings()
+				elseif settingScale < resolutionCap and settingScale < 1 then
+					settingScale = 1
+					applySettings()
+				end
+			end
+			statusbar("resolution: " .. (512*settingScale) .. "x" .. (512*settingScale))
+		elseif menu[guiOption] == "fullscreen" then
+			if kLeftP or kRightP then
+				if settingFullscreen then
+					settingFullscreen = false
+				else
+					settingFullscreen = true
+				end
+				applySettings()
+			end
+			statusbar("fullscreen: " .. tostring(settingFullscreen))
+		end
+	end
 end
 
+function statusbar(text)
+	love.graphics.printf(text, 16, 16, (512-32), "center")
+end
 
 function love.keypressed(key, unicode)
 	if key == "p" then
